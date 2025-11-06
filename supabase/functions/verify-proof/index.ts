@@ -73,18 +73,32 @@ Respond in JSON format:
     const aiResponse = data.choices[0].message.content;
     console.log('AI response:', aiResponse);
 
-    // Parse the AI response
+    // Parse the AI response (handle markdown code blocks)
     let verification;
     try {
-      verification = JSON.parse(aiResponse);
+      // Remove markdown code blocks if present
+      let cleanedResponse = aiResponse.trim();
+      if (cleanedResponse.startsWith('```json')) {
+        cleanedResponse = cleanedResponse.replace(/^```json\n/, '').replace(/\n```$/, '');
+      } else if (cleanedResponse.startsWith('```')) {
+        cleanedResponse = cleanedResponse.replace(/^```\n/, '').replace(/\n```$/, '');
+      }
+      
+      verification = JSON.parse(cleanedResponse);
+      
+      // Reject if confidence is less than 50
+      if (verification.confidence < 50) {
+        verification.matches = false;
+        verification.reason = `Low confidence (${verification.confidence}%). ${verification.reason || 'Document does not match the claimed category.'}`;
+      }
     } catch (e) {
       console.error('Failed to parse AI response:', e);
-      // Fallback verification
+      // Fallback verification - reject by default
       verification = {
-        matches: true,
-        confidence: 50,
-        analysis: aiResponse,
-        reason: 'Unable to parse structured response'
+        matches: false,
+        confidence: 0,
+        analysis: 'Unable to verify document',
+        reason: 'AI verification failed. Please try again or contact support.'
       };
     }
 

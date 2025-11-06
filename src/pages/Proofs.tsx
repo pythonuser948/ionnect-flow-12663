@@ -130,7 +130,24 @@ const Proofs = () => {
 
           console.log('Verification result:', verification);
 
-          // Save to Supabase with recipient
+          // Check if verification failed or confidence too low
+          if (!verification.matches || verification.confidence < 50) {
+            toast({
+              title: "Document rejected",
+              description: `Confidence: ${verification.confidence}%. ${verification.reason}`,
+              variant: "destructive"
+            });
+            
+            // Don't save rejected proofs
+            setTitle("");
+            setCategory("");
+            setRecipient("HOD AIML");
+            setSelectedFile(null);
+            setPreviewUrl("");
+            return;
+          }
+
+          // Save to Supabase with recipient (only if verified)
           const { data: proofData, error: insertError } = await supabase
             .from('proofs')
             .insert({
@@ -139,9 +156,8 @@ const Proofs = () => {
               category,
               recipient,
               document_data: imageData,
-              ai_analysis: verification.analysis,
-              status: verification.matches ? 'pending' : 'rejected',
-              rejection_reason: verification.matches ? null : verification.reason
+              ai_analysis: JSON.stringify(verification),
+              status: 'pending'
             })
             .select()
             .single();
@@ -154,19 +170,16 @@ const Proofs = () => {
             title,
             category,
             imageData,
-            status: verification.matches ? 'pending' : 'rejected',
+            status: 'pending',
             timestamp: Date.now(),
-            aiAnalysis: verification.analysis,
-            rejectionReason: verification.matches ? undefined : verification.reason
+            aiAnalysis: JSON.stringify(verification)
           };
           await saveProof(proofDoc);
 
           toast({
-            title: verification.matches ? "Document verified!" : "Document rejected",
-            description: verification.matches 
-              ? "Your proof has been submitted for faculty approval"
-              : `Reason: ${verification.reason}`,
-            variant: verification.matches ? "default" : "destructive"
+            title: "Document verified!",
+            description: `Confidence: ${verification.confidence}%. Submitted for faculty approval.`,
+            variant: "default"
           });
 
           // Reset form
@@ -394,7 +407,7 @@ const Proofs = () => {
                           <X className="w-5 h-5 text-destructive" />
                         )}
                       </div>
-                       <div className="flex-1">
+                       <div className="flex-1 min-w-0">
                         <h4 className="font-medium text-sm">{proof.title}</h4>
                         <p className="text-xs text-muted-foreground">Category: {proof.category}</p>
                         <p className="text-xs font-medium text-primary">
@@ -403,11 +416,41 @@ const Proofs = () => {
                         <p className="text-xs text-muted-foreground">
                           {new Date(proof.created_at).toLocaleDateString()}
                         </p>
-                        {proof.ai_analysis && (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            AI: {proof.ai_analysis}
-                          </p>
-                        )}
+                        
+                        {/* AI Analysis Display */}
+                        {proof.ai_analysis && (() => {
+                          try {
+                            const analysis = JSON.parse(proof.ai_analysis);
+                            return (
+                              <div className="mt-2 space-y-1">
+                                <div className="flex gap-2 flex-wrap">
+                                  <div className="bg-primary/10 text-primary text-xs px-2 py-1 rounded">
+                                    Confidence: {analysis.confidence}%
+                                  </div>
+                                  {analysis.matches !== undefined && (
+                                    <div className={`text-xs px-2 py-1 rounded ${
+                                      analysis.matches ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'
+                                    }`}>
+                                      {analysis.matches ? 'Matched' : 'Not Matched'}
+                                    </div>
+                                  )}
+                                </div>
+                                {analysis.analysis && (
+                                  <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                                    {analysis.analysis}
+                                  </p>
+                                )}
+                              </div>
+                            );
+                          } catch {
+                            return (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                AI: {proof.ai_analysis}
+                              </p>
+                            );
+                          }
+                        })()}
+                        
                         {proof.rejection_reason && (
                           <p className="text-xs text-destructive mt-1">
                             Reason: {proof.rejection_reason}
@@ -415,7 +458,7 @@ const Proofs = () => {
                         )}
                       </div>
                     </div>
-                    <div className="flex gap-2 items-center">
+                    <div className="flex flex-col gap-2 items-end flex-shrink-0">
                       <Button
                         size="sm"
                         variant="outline"
@@ -430,7 +473,7 @@ const Proofs = () => {
                         <>
                           <Button
                             size="sm"
-                            variant="default"
+                            variant="success"
                             onClick={() => handleFacultyAction(proof.id, 'approved')}
                           >
                             Approve
@@ -447,17 +490,19 @@ const Proofs = () => {
                           </Button>
                         </>
                       )}
-                      <span
-                        className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                          proof.status === "approved"
-                            ? "bg-success/10 text-success"
-                            : proof.status === "pending"
-                            ? "bg-warning/10 text-warning"
-                            : "bg-destructive/10 text-destructive"
-                        }`}
-                      >
-                        {proof.status}
-                      </span>
+                      {!isFaculty && (
+                        <span
+                          className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                            proof.status === "approved"
+                              ? "bg-success/10 text-success"
+                              : proof.status === "pending"
+                              ? "bg-warning/10 text-warning"
+                              : "bg-destructive/10 text-destructive"
+                          }`}
+                        >
+                          {proof.status}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </Card>
