@@ -28,6 +28,7 @@ export type Database = {
           student_id: string
           title: string
           updated_at: string
+          usn: string | null
         }
         Insert: {
           ai_analysis?: string | null
@@ -42,6 +43,7 @@ export type Database = {
           student_id: string
           title: string
           updated_at?: string
+          usn?: string | null
         }
         Update: {
           ai_analysis?: string | null
@@ -56,6 +58,7 @@ export type Database = {
           student_id?: string
           title?: string
           updated_at?: string
+          usn?: string | null
         }
         Relationships: []
       }

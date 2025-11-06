@@ -1,8 +1,9 @@
 import { Home, MessageCircle, Rocket, FileCheck, User } from "lucide-react";
 import { NavLink } from "./NavLink";
 import { cn } from "@/lib/utils";
+import { useUserRole } from "@/hooks/useUserRole";
 
-const navItems = [
+const allNavItems = [
   { to: "/home", icon: Home, label: "Home" },
   { to: "/chat", icon: MessageCircle, label: "IONCONNECT" },
   { to: "/launchpad", icon: Rocket, label: "Launchpad" },
@@ -10,7 +11,14 @@ const navItems = [
   { to: "/profile", icon: User, label: "Profile" },
 ];
 
+const facultyNavItems = [
+  { to: "/proofs", icon: FileCheck, label: "Proofs" },
+  { to: "/profile", icon: User, label: "Profile" },
+];
+
 export const BottomNav = () => {
+  const { role } = useUserRole();
+  const navItems = role === 'faculty' ? facultyNavItems : allNavItems;
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-lg border-t border-border/50 z-50">
       <div className="max-w-screen-xl mx-auto px-2">

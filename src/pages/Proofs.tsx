@@ -17,6 +17,7 @@ const Proofs = () => {
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("");
   const [recipient, setRecipient] = useState("HOD AIML");
+  const [usn, setUsn] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>("");
   const [localProofs, setLocalProofs] = useState<ProofDocument[]>([]);
@@ -98,7 +99,7 @@ const Proofs = () => {
   };
 
   const handleUpload = async () => {
-    if (!selectedFile || !title || !category || !recipient) {
+    if (!selectedFile || !title || !category || !recipient || !usn) {
       toast({
         title: "Missing information",
         description: "Please fill in all fields and select a file",
@@ -142,6 +143,7 @@ const Proofs = () => {
             setTitle("");
             setCategory("");
             setRecipient("HOD AIML");
+            setUsn("");
             setSelectedFile(null);
             setPreviewUrl("");
             return;
@@ -155,6 +157,7 @@ const Proofs = () => {
               title,
               category,
               recipient,
+              usn,
               document_data: imageData,
               ai_analysis: JSON.stringify(verification),
               status: 'pending'
@@ -186,6 +189,7 @@ const Proofs = () => {
           setTitle("");
           setCategory("");
           setRecipient("HOD AIML");
+          setUsn("");
           setSelectedFile(null);
           setPreviewUrl("");
           loadProofs();
@@ -303,6 +307,16 @@ const Proofs = () => {
                 </div>
 
                 <div>
+                  <Label htmlFor="usn">USN (University Seat Number)</Label>
+                  <Input
+                    id="usn"
+                    placeholder="e.g., 4VV21CS001"
+                    value={usn}
+                    onChange={(e) => setUsn(e.target.value)}
+                  />
+                </div>
+
+                <div>
                   <Label htmlFor="recipient">Send To</Label>
                   <select
                     id="recipient"
@@ -407,9 +421,14 @@ const Proofs = () => {
                           <X className="w-5 h-5 text-destructive" />
                         )}
                       </div>
-                       <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0">
                         <h4 className="font-medium text-sm">{proof.title}</h4>
                         <p className="text-xs text-muted-foreground">Category: {proof.category}</p>
+                        {isFaculty && proof.usn && (
+                          <p className="text-xs font-medium text-foreground">
+                            USN: {proof.usn}
+                          </p>
+                        )}
                         <p className="text-xs font-medium text-primary">
                           Sent to: {proof.recipient}
                         </p>
@@ -463,8 +482,23 @@ const Proofs = () => {
                         size="sm"
                         variant="outline"
                         onClick={() => {
+                          // For faculty, always show the document from database
+                          // For students, try localProofs first, then fallback to database
                           const doc = localProofs.find(p => p.id === proof.id);
-                          if (doc) setViewingProof(doc);
+                          if (doc) {
+                            setViewingProof(doc);
+                          } else if (proof.document_data) {
+                            // Create a temporary proof document from database data
+                            setViewingProof({
+                              id: proof.id,
+                              title: proof.title,
+                              category: proof.category,
+                              imageData: proof.document_data,
+                              status: proof.status,
+                              timestamp: new Date(proof.created_at).getTime(),
+                              aiAnalysis: proof.ai_analysis
+                            });
+                          }
                         }}
                       >
                         <Eye className="w-4 h-4" />
